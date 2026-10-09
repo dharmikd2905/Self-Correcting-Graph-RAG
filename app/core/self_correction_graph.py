@@ -10,11 +10,12 @@ Graph shape:
                     +------------------ rewrite
 
 `retries_used` is capped by `settings.max_correction_retries` so the loop
-always has a "give up gracefully" exit, per the RAG skill's Common
-Mistake #6/#7 (no fallback path / no retry limit -> infinite loop).
+always has a "give up gracefully" exit.
 """
 from __future__ import annotations
 
+import time
+import logging
 from typing import TypedDict
 
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -23,6 +24,8 @@ from langgraph.graph import END, StateGraph
 from app.core.config import Settings, get_settings
 from app.core.retrieval import HybridRetriever
 from app.schemas.models import EvaluationResult, QueryTraceStep, RetrievedContext
+
+logger = logging.getLogger(__name__)
 
 GENERATION_SYSTEM_PROMPT = """You are a precise technical assistant answering strictly from the
 provided context (retrieved via hybrid vector + knowledge-graph search).
@@ -60,6 +63,20 @@ class GraphState(TypedDict):
     trace: list[QueryTraceStep]
 
 
+def invoke_with_retry(model, input_arg, max_attempts: int = 3, backoff_sec: float = 4.0):
+    """Executes model invocation with automatic rate-limit (429) backoff retry."""
+    for attempt in range(max_attempts):
+        try:
+            return model.invoke(input_arg)
+        except Exception as exc:
+            err_msg = str(exc)
+            if ("429" in err_msg or "rate_limit" in err_msg.lower()) and attempt < max_attempts - 1:
+                logger.warning("Rate limit encountered. Sleeping %.1fs before retry %d/%d...", backoff_sec, attempt + 1, max_attempts)
+                time.sleep(backoff_sec * (attempt + 1))
+                continue
+            raise exc
+
+
 def build_self_correction_graph(retriever: HybridRetriever, llm: BaseChatModel, settings: Settings | None = None):
     settings = settings or get_settings()
 
@@ -81,7 +98,7 @@ def build_self_correction_graph(retriever: HybridRetriever, llm: BaseChatModel, 
             ("system", GENERATION_SYSTEM_PROMPT),
             ("human", f"Context:\n{context_block}\n\nQuestion: {state['original_query']}"),
         ]
-        response = llm.invoke(messages)
+        response = invoke_with_retry(llm, messages)
         state["answer"] = response.content if hasattr(response, "content") else str(response)
         state["trace"].append(QueryTraceStep(node="generate", detail=f"Generated {len(state['answer'])} chars"))
         return state
@@ -90,7 +107,8 @@ def build_self_correction_graph(retriever: HybridRetriever, llm: BaseChatModel, 
         context_block = "\n\n".join(f"[{i+1}] {c.text}" for i, c in enumerate(state["contexts"])) or "(none)"
         structured_llm = llm.with_structured_output(EvaluationResult)
         try:
-            evaluation: EvaluationResult = structured_llm.invoke(
+            evaluation: EvaluationResult = invoke_with_retry(
+                structured_llm,
                 [
                     ("system", EVALUATOR_SYSTEM_PROMPT),
                     (
@@ -101,8 +119,6 @@ def build_self_correction_graph(retriever: HybridRetriever, llm: BaseChatModel, 
                 ]
             )
         except Exception:  # noqa: BLE001
-            # Evaluator failure shouldn't crash the pipeline -- fail-open with
-            # a conservative pass so the user still gets an answer.
             evaluation = EvaluationResult(
                 hallucination_score=0.0, relevance_score=1.0, passed=True, reasoning="Evaluator unavailable; fail-open."
             )
@@ -125,7 +141,8 @@ def build_self_correction_graph(retriever: HybridRetriever, llm: BaseChatModel, 
 
     def rewrite_node(state: GraphState) -> GraphState:
         state["retries_used"] += 1
-        response = llm.invoke(
+        response = invoke_with_retry(
+            llm,
             [
                 ("system", REWRITE_SYSTEM_PROMPT),
                 (
@@ -145,7 +162,7 @@ def build_self_correction_graph(retriever: HybridRetriever, llm: BaseChatModel, 
         if state["evaluation"] and state["evaluation"].passed:
             return "end"
         if state["retries_used"] >= state["max_retries"]:
-            return "end"  # graceful give-up, per skill's "always include a fallback path"
+            return "end"
         return "rewrite"
 
     graph = StateGraph(GraphState)

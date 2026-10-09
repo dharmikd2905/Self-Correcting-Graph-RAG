@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Self-Correcting Graph RAG — Runtime Architecture",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/dharmikd2905/Self-Correcting-Graph-RAG",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "21e97408a4c77fcba93194fce5e406c4d63ce688"
+    },
+    "viewBox": [1320, 720]
+  },
+  "components": [
+    { "id": "client", "type": "external", "label": "Client", "sublabel": "Query request", "pos": [36, 300], "size": [142, 72] },
+    { "id": "fastapi", "type": "backend", "label": "FastAPI", "sublabel": "POST /api/v1/query", "sources": [{ "path": "app/main.py", "line": 96 }], "pos": [220, 300], "size": [162, 72] },
+    { "id": "retriever", "type": "backend", "label": "HybridRetriever", "sublabel": "Vector + graph ranking", "sources": [{ "path": "app/core/retrieval.py", "line": 39 }], "pos": [438, 300], "size": [180, 72] },
+    { "id": "vector-db", "type": "database", "label": "ChromaDB", "sublabel": "Persistent vector store", "sources": [{ "path": "app/core/vector_store.py", "line": 21 }], "pos": [442, 112], "size": [172, 72] },
+    { "id": "graph-store", "type": "backend", "label": "NetworkX GraphStore", "sublabel": "Entity graph + PageRank", "sources": [{ "path": "app/core/graph_store.py", "line": 36 }], "pos": [438, 498], "size": [184, 72] },
+    { "id": "graph-pickle", "type": "database", "label": "Graph pickle file", "sublabel": "./data/graph.gpickle", "sources": [{ "path": "app/core/config.py", "line": 74 }], "pos": [680, 498], "size": [174, 72] },
+    { "id": "langgraph", "type": "backend", "label": "LangGraph state machine", "sublabel": "Retrieve → generate → evaluate → rewrite", "sources": [{ "path": "app/core/self_correction_graph.py", "line": 50 }], "pos": [680, 300], "size": [222, 72] },
+    { "id": "groq", "type": "external", "label": "Groq API", "sublabel": "Chat completion + evaluation", "sources": [{ "path": "app/core/llm_provider.py", "line": 21 }], "pos": [1042, 300], "size": [174, 72] }
+  ],
+  "boundaries": [
+    { "kind": "security-group", "label": "External network trust boundary", "wraps": ["groq"], "pad": 22 }
+  ],
+  "connections": [
+    { "id": "client-query", "from": "client", "to": "fastapi", "label": "HTTP query", "variant": "emphasis", "labelDy": -50 },
+    { "id": "api-retrieve", "from": "fastapi", "to": "retriever", "label": "validated query", "variant": "emphasis", "labelDy": -50 },
+    { "id": "retrieve-pipeline", "from": "retriever", "to": "langgraph", "label": "retrieved context", "labelDy": -50 },
+    { "id": "retrieve-vector", "from": "retriever", "to": "vector-db", "label": "similarity search", "fromSide": "top", "toSide": "bottom" },
+    { "id": "retrieve-graph", "from": "retriever", "to": "graph-store", "label": "2-hop BFS + PageRank", "fromSide": "bottom", "toSide": "top" },
+    { "id": "graph-persist", "from": "graph-store", "to": "graph-pickle", "label": "load / save", "variant": "dashed", "labelDy": -50 },
+    { "id": "llm-call", "from": "langgraph", "to": "groq", "label": "generation, scoring, rewrite", "variant": "security", "width": 2, "labelDy": -50 }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Query path", "items": ["FastAPI validates the request, then builds the self-correcting query pipeline.", "Failed evaluations can rewrite and retry up to the configured limit."] },
+    { "dot": "violet", "title": "Hybrid retrieval", "items": ["ChromaDB returns dense matches; NetworkX adds graph traversal and PageRank scoring.", "Graph-only chunk IDs are fetched from the vector collection for their text."] },
+    { "dot": "amber", "title": "Provider and persistence", "items": ["Groq is shown as requested; code supports Groq, OpenAI, or local Ollama, and defaults to Ollama.", "ChromaDB persists under ./data/chroma; the graph pickle defaults to ./data/graph.gpickle."] }
+  ]
+}

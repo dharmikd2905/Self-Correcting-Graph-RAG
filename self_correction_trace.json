@@ -1,58 +1,26 @@
 {
-  "original_query": "How does Component A use OAuth2 refresh tokens and AES encryption to prevent session rollbacks in Project Aurora?",
-  "final_query": "\"Project Aurora\" \"Component A\" OAuth2 refresh token AES encryption session rollback prevention design documentation",
-  "retries_used": 2,
-  "answer": "I\u2019m sorry, but the provided context does not contain any information about Component\u202fA (the API Gateway) using OAuth\u202f2 refresh tokens or AES encryption, nor does it describe any mechanism by which such techniques would prevent session rollbacks in Project\u202fAurora. The excerpts only mention that Component\u202fA performs authentication and rate\u2011limiting and relies on the Auth Service for JWT validation, while Project\u202fAurora forwards events to the Pulsar Event Bus. No details about OAuth\u202f2 refresh tokens, AES encryption, or session\u2011rollback prevention are present.",
+  "original_query": "What AES-256 encryption key size is configured in Guardrail-Zero for Auth Service JWT tokens?",
+  "final_query": "What AES-256 encryption key size is configured in Guardrail-Zero for Auth Service JWT tokens?",
+  "retries_used": 0,
+  "answer": "The provided context does not contain any information about an AES\u2011256 encryption key size configured in Guardrail\u2011Zero for Auth Service JWT tokens. Therefore, I cannot answer the question based on the given material.",
   "evaluation": {
-    "passed": false,
+    "passed": true,
     "hallucination_score": 0.0,
-    "relevance_score": 0.9,
-    "reasoning": "The answer contains no statements that are unsupported by the provided context; it correctly notes that the context lacks any mention of OAuth2 refresh tokens, AES encryption, or session\u2011rollback prevention, so hallucination_score is 0. The answer directly addresses the original query by stating the absence of relevant information, which satisfies the query's intent, yielding a high relevance_score."
+    "relevance_score": 1.0,
+    "reasoning": "The answer makes no claims that are not supported by the provided context. It correctly notes that the context does not contain any information about an AES\u2011256 key size for Guardrail\u2011Zero, so there is no hallucination. The response directly addresses the original query by stating the lack of relevant information, which fully resolves the query's request for that detail."
   },
   "trace": [
     {
       "node": "retrieve",
-      "detail": "Retrieved 6 chunks for query: 'How does Component A use OAuth2 refresh tokens and AES encryption to prevent session rollbacks in Project Aurora?'"
+      "detail": "Retrieved 7 chunks for query: 'What AES-256 encryption key size is configured in Guardrail-Zero for Auth Service JWT tokens?'"
     },
     {
       "node": "generate",
-      "detail": "Generated 636 chars"
+      "detail": "Generated 217 chars"
     },
     {
       "node": "evaluate",
-      "detail": "hallucination=0.00, relevance=0.90, passed=False"
-    },
-    {
-      "node": "rewrite",
-      "detail": "Rewritten query: 'Project Aurora \"Component A\" OAuth2 refresh token handling AES encryption session rollback prevention design documentation'"
-    },
-    {
-      "node": "retrieve",
-      "detail": "Retrieved 6 chunks for query: 'Project Aurora \"Component A\" OAuth2 refresh token handling AES encryption session rollback prevention design documentation'"
-    },
-    {
-      "node": "generate",
-      "detail": "Generated 502 chars"
-    },
-    {
-      "node": "evaluate",
-      "detail": "hallucination=0.00, relevance=0.90, passed=False"
-    },
-    {
-      "node": "rewrite",
-      "detail": "Rewritten query: '\"Project Aurora\" \"Component A\" OAuth2 refresh token AES encryption session rollback prevention design documentation'"
-    },
-    {
-      "node": "retrieve",
-      "detail": "Retrieved 6 chunks for query: '\"Project Aurora\" \"Component A\" OAuth2 refresh token AES encryption session rollback prevention design documentation'"
-    },
-    {
-      "node": "generate",
-      "detail": "Generated 562 chars"
-    },
-    {
-      "node": "evaluate",
-      "detail": "hallucination=0.00, relevance=0.90, passed=False"
+      "detail": "hallucination=0.00, relevance=1.00, passed=True"
     }
   ]
 }
